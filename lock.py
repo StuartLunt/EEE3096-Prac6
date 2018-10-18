@@ -1,7 +1,8 @@
+#!/usr/bin/python
 import RPi.GPIO as GPIO
 import Adafruit_MCP3008, time, os, sys, spidev
 from datetime import datetime, timedelta
-from threading import Event
+from collections import deque
 
 #Open SPI bus
 spi=spidev.SpiDev()
@@ -20,9 +21,12 @@ u = 15
 s = 18
 
 #variables
-tol = 50
+timeTol = 50
+voltTol=10
 dur=[0]*16
 dir=[0]*16
+q = deque([0]*6)
+
 
 #GPIO setup
 GPIO.setup(SPIMOSI, GPIO.OUT)
@@ -40,10 +44,7 @@ mcp = Adafruit_MCP3008.MCP3008(clk=SPICLK, cs=SPICS, mosi=SPIMOSI, miso=SPIMISO)
 values=[0]*8
 
 #Event detection set up
-GPIO.add_event_detect(switch1, GPIO.FALLING, callback=reset, bouncetime=200)
-GPIO.add_event_detect(switch2, GPIO.FALLING, callback=frequency, bouncetime=200)
-GPIO.add_event_detect(switch3, GPIO.FALLING, callback=stop, bouncetime=200)
-GPIO.add_event_detect(switch4, GPIO.FALLING, callback=display, bouncetime=200)
+GPIO.add_event_detect(s, GPIO.FALLING, callback=readCode, bouncetime=200)
 
 #Function dfinitions
 def lock():
@@ -57,8 +58,10 @@ def unlock():
     GPIO.output(u,0)
 
 def readCode():
-    #read and time code here
-    # 2 sec time out
+    dur=[0]*16
+    dir=[0]*16
+    for i in range(0,16):
+        while 
 
 def checkCode():
     #Compare codes
@@ -66,4 +69,9 @@ def checkCode():
 
 def sort():
     #sort
+
+while True:
+    pot=mcp.read_adc(0)
+    q.append(pot)
+    q.popleft()
 
