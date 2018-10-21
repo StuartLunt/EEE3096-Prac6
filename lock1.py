@@ -10,7 +10,6 @@ spi.open(0,0)
 #Set up GPIO
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-
 #Pin definitions
 SPICLK = 11
 SPIMISO = 9
@@ -27,7 +26,7 @@ tol = 50 # tolerance
 dur=[0]*16 # duration array
 dir=[0]*16 # direction array 0 = left, 1 = right
 
-combocode = [5000,4000,3000,3000,0,0,0,0,0,0,0,0,0,0,0,0] # desired code
+combocode = [500,400,300,300,0,0,0,0,0,0,0,0,0,0,0,0] # desired code
 code_dir = [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0] # desired code order
 
 #GPIO setup
@@ -38,14 +37,19 @@ GPIO.setup(SPICS, GPIO.OUT)
 
 GPIO.setup(l, GPIO.OUT, initial=0)
 GPIO.setup(u, GPIO.OUT, initial=0 )
-GPIO.setup(sec, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(sec, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(unsec, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(lock, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+PB = GPIO.input(sec) # configure pushbutton as GPIO input
+PB1 = GPIO.input(unsec) # configure mode pushbutton as GPIO input
 
 #Main function
 mcp = Adafruit_MCP3008.MCP3008(clk=SPICLK, cs=SPICS, mosi=SPIMOSI, miso=SPIMISO)
 values=[0]*8
 
+#Event detection set up
+GPIO.add_event_detect(lock, GPIO.FALLING, callback=lock, bouncetime=200)
 
 #Function dfinitions
 def lock():
@@ -83,25 +87,19 @@ def sort(x): # sorting funciton for array
     
     return new
 
-
-#Event detection set up
-#GPIO.add_event_detect(lock, GPIO.FALLING, callback=lock, bouncetime=200)
-
 # Main
 
 while True: # while loop continues until push button is pressed
-    PB = GPIO.input(sec) # configure pushbutton as GPIO input
-    PB1 = GPIO.input(unsec) # configure mode pushbutton as GPIO input
     time.sleep(0.1)
     pot = mcp.read_adc(0) # pot is the read voltage value from the potentiometer
     #print(pot)
     time.sleep(0.2)
-    
+       
     if PB == False: # waits until pull up resistor goes high
         sec = False # security mode
         print("Secure Mode Active")
 
-    elif PB1 == False:
+    elif PB1 != False:
         sec = True
         print("Unsecure Mode Active")
      
@@ -114,10 +112,10 @@ while True: # while loop continues until push button is pressed
     time_start= 0 # start time while it waits for next value
     pause =False # goes true if a pause is occuring
     finished = False
-    
           
     while i<16 and (sec == False or sec == True): # set to 16 for the full array
         new_pot = mcp.read_adc(0) # read new potentiometer value to see if it has incr. or decr.
+        
         if new_pot- tol > pot and direc!=0: # checks if potentiometer voltage is increasing simbolising turn
             #print("new>old")
             if st == False:
@@ -145,7 +143,7 @@ while True: # while loop continues until push button is pressed
             print("in")
             time_stop = time.time()
                 
-            tot_time = round(time_stop - time_start, 2)*1000 # value for how long potentiometer was rotating in ms
+            tot_time = round(time_stop - time_start, 2)*100 # value for how long potentiometer was rotating in ms
             print(tot_time)
             dur[i] = tot_time # updates the duration array
             i+=1 # increment while loop counter
@@ -186,7 +184,7 @@ while True: # while loop continues until push button is pressed
         if sec == False:
             i=0
             for j in dur:
-                if j+500 > combocode[i] and j-500<combocode[i]:
+                if j+tol > combocode[i] and j-tol<combocode[i]:
                     dur[i] = combocode[i]
                 i+=1
             print(dur)
@@ -204,7 +202,7 @@ while True: # while loop continues until push button is pressed
             
             i=0
             for j in sorted:
-                if j+500 > sorted_code[i] and j-500<sorted_code[i]:
+                if j+tol > sorted_code[i] and j-tol<sorted_code[i]:
                     sorted[i] = sorted_code[i]
                 i+=1
                 
@@ -222,6 +220,6 @@ while True: # while loop continues until push button is pressed
         
   
     
-GPIO.cleanup()
+    
     
     
