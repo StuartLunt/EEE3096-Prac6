@@ -10,6 +10,7 @@ spi.open(0,0)
 #Set up GPIO
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
+
 #Pin definitions
 SPICLK = 11
 SPIMISO = 9
@@ -17,15 +18,17 @@ SPIMOSI = 10
 SPICS = 8
 l = 14
 u = 15
-s = 25 #switch
+sec = 25 #secure switch mode
+unsec = 18 #insecure switch mode
+lock = 22 # sets the lock button
 
 #variables
 tol = 50 # tolerance
 dur=[0]*16 # duration array
 dir=[0]*16 # direction array 0 = left, 1 = right
 
-code = [5,4,3,2,0,0,0,0,0,0,0,0,0,0,0,0] # desired code
-code_dir = [1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0] # desired code order
+combocode = [5000,4000,3000,3000,0,0,0,0,0,0,0,0,0,0,0,0] # desired code
+code_dir = [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0] # desired code order
 
 #GPIO setup
 GPIO.setup(SPIMOSI, GPIO.OUT)
@@ -35,17 +38,14 @@ GPIO.setup(SPICS, GPIO.OUT)
 
 GPIO.setup(l, GPIO.OUT, initial=0)
 GPIO.setup(u, GPIO.OUT, initial=0 )
-GPIO.setup(s, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-#GPIO.setup(switch4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-PB = GPIO.input(s) # configure pushbutton as GPIO input
+GPIO.setup(sec, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(unsec, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(lock, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 #Main function
 mcp = Adafruit_MCP3008.MCP3008(clk=SPICLK, cs=SPICS, mosi=SPIMOSI, miso=SPIMISO)
 values=[0]*8
 
-#Event detection set up
-##GPIO.add_event_detect(s, GPIO.FALLING, callback=reset, bouncetime=200)
 
 #Function dfinitions
 def lock():
@@ -83,105 +83,145 @@ def sort(x): # sorting funciton for array
     
     return new
 
+
+#Event detection set up
+#GPIO.add_event_detect(lock, GPIO.FALLING, callback=lock, bouncetime=200)
+
 # Main
 
 while True: # while loop continues until push button is pressed
+    PB = GPIO.input(sec) # configure pushbutton as GPIO input
+    PB1 = GPIO.input(unsec) # configure mode pushbutton as GPIO input
     time.sleep(0.1)
     pot = mcp.read_adc(0) # pot is the read voltage value from the potentiometer
     #print(pot)
     time.sleep(0.2)
-    if PB != False: # waits until pull up resistor goes high
-        print("In Loop")
-        i=0
-        direc = -1 # direction of rotation of pot. -1= not moving
-        st = False # has not started timing the turn
-        pause_start = 0 # pause time to wait for next value
-        time_start= 0 # start time while it waits for next value
-        pause =False # goes true if a pause is occuring
-        
-        while i<4: # set to 16 for the full array
-            new_pot = mcp.read_adc(0) # read new potentiometer value to see if it has incr. or decr.
-            #print(dur)
-            
-            if new_pot- tol > pot and direc!=0: # checks if potentiometer voltage is increasing simbolising turn
-                #print("new>old")
-                if st == False:
-                    time_start = time.time() # starts the timer for turn
-                    st = True # sets to say timer has started
-                    print("started")
-                
-                pause_start = 0
-                direc = 1 # direc = 1 means it is moving left
-                dir[i] = 1 # updates the direction array
-                pot = mcp.read_adc(0) #update the current potentiometer value
-                pause = False
+    
+    if PB == False: # waits until pull up resistor goes high
+        sec = False # security mode
+        print("Secure Mode Active")
 
-            elif (new_pot+ tol>pot) and (new_pot-tol < pot) and direc!=-1 and pause == False: # checks if potentiometer has stopped spinning
-                #print("paused")
-                pause_start = time.time() # starts timing to see how long pause lasts
-                direc = -1 # sets direction to not moving
-                pause = True
+    elif PB1 == False:
+        sec = True
+        print("Unsecure Mode Active")
+     
+    dur = [0]*16
+    dir = [0]*16
+    i=0
+    direc = -1 # direction of rotation of pot. -1= not moving
+    st = False # has not started timing the turn
+    pause_start = 0 # pause time to wait for next value
+    time_start= 0 # start time while it waits for next value
+    pause =False # goes true if a pause is occuring
+    finished = False
+    
+          
+    while i<16 and (sec == False or sec == True): # set to 16 for the full array
+        new_pot = mcp.read_adc(0) # read new potentiometer value to see if it has incr. or decr.
+        if new_pot- tol > pot and direc!=0: # checks if potentiometer voltage is increasing simbolising turn
+            #print("new>old")
+            if st == False:
+                time_start = time.time() # starts the timer for turn
+                st = True # sets to say timer has started
+                print("started")
                 
-            elif (new_pot+tol>pot) and (new_pot-tol < pot) and direc ==-1 and time.time()- pause_start >=1 and st == True and pause == True: # waits until pause time is long enough before updating the arrays
-                print("in")
-                time_stop = time.time()
-                
-                tot_time = time_stop - time_start # value for how long potentiometer was rotating
-                dur[i] = tot_time # updates the duration array
-                i+=1 # increment while loop counter
-                direc = -1
-                pot = mcp.read_adc(0)
-                st = False # set timer start to false
-                pause = False
-                
-            elif new_pot+tol < pot and direc != 1:
-                #print("new<old")
-                if st == False:
-                    #print("started")
-                    time_start = time.time()
-                    st = True
-                    print("started reverse")
-                
-                pause_start =0
-                direc = 0 # direc = 0 means it is moving right
-                dir[i] = 0
-                pot = mcp.read_adc(0)
-                pause = False
+            pause_start = 0
+            direc = 1 # direc = 1 means it is moving left
+            dir[i] = 1 # updates the direction array
+            pot = mcp.read_adc(0) #update the current potentiometer value
+            pause = False
+
+        elif (new_pot+ tol>pot) and (new_pot-tol < pot) and pause == False: # checks if potentiometer has stopped spinning
+            #print("paused")
+            pause_start = time.time() # starts timing to see how long pause lasts
+            #direc = -1 # sets direction to not moving
+            pause = True
             
+        elif time.time() - pause_start >=2 and pause == True:
+            break
                 
+        elif (new_pot+tol>pot) and (new_pot-tol < pot) and time.time()- pause_start >=1 and st == True and pause == True: # waits until pause time is long enough before updating the arrays
+            
+            print("in")
+            time_stop = time.time()
+                
+            tot_time = round(time_stop - time_start, 2)*1000 # value for how long potentiometer was rotating in ms
+            print(tot_time)
+            dur[i] = tot_time # updates the duration array
+            i+=1 # increment while loop counter
+            direc = -1
+            pot = mcp.read_adc(0)
+            st = False # set timer start to false
+            pause = False
+                
+        elif new_pot+tol < pot and direc != 1:
+            #print("new<old")
+            if st == False:
+                #print("started")
+                time_start = time.time()
+                st = True
+                print("started reverse")
+                
+            pause_start =0
+            direc = 0 # direc = 0 means it is moving right
+            dir[i] = 0
+            pot = mcp.read_adc(0)
+            pause = False
+        
+        finished = True
+
+        
+    if finished == True:
         print(dur)
         print(dir)
-        
-        j=0
-        while j<16:
-            dur[j] = round(dur[j]) # rounds off the array variables
-            j+=1
+            
+        #j=0
+        #while j<16:
+            #dur[j] = round(dur[j]) # rounds off the array variables
+            #j+=1
+                    
+        #print(dur)
+            
+            
+        if sec == False:
+            i=0
+            for j in dur:
+                if j+500 > combocode[i] and j-500<combocode[i]:
+                    dur[i] = combocode[i]
+                i+=1
+            print(dur)
+            if dur == combocode and dir == code_dir:
+                print("Code Correct!")
+            
+            else:
+                print("Incorrect Code Entered")
+
+
+            
+        elif sec == True:
+            sorted = sort(dur) # sorts the recorded durations
+            sorted_code = sort(combocode) # sorts the desired code
+            
+            i=0
+            for j in sorted:
+                if j+500 > sorted_code[i] and j-500<sorted_code[i]:
+                    sorted[i] = sorted_code[i]
+                i+=1
                 
-        print(dur)
-        
-        if dur==code and dir == code_dir: # secure mode clause
-            print("YAY Perfect")
-        
-        else:
-            print("Awwwwwww...")
-                
-        sorted = sort(dur) # sorts the recorded durations
-        sorted_code = sort(code) # sorts the desired code
-        
-        if sorted == sorted_code:  # insecure mode clause
-            print("Insecure mode pass")
-        
-        else:
-            print("Failed all")
-        
+            
+            if sorted == sorted_code:  # insecure mode clause
+                print("Insecure mode pass")
+                os.system("")
+            
+            else:
+                print("Insecure mode fail")
+                os.system("")
+            
         break
                 
         
-        
-        
-        #return dur,tol
-
+  
     
-    
+GPIO.cleanup()
     
     
