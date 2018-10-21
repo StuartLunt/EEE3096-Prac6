@@ -19,6 +19,7 @@ l = 14
 u = 15
 sec = 25 #secure switch mode
 unsec = 18 #insecure switch mode
+lock = 22 # sets the lock button
 
 #variables
 tol = 50 # tolerance
@@ -38,7 +39,7 @@ GPIO.setup(l, GPIO.OUT, initial=0)
 GPIO.setup(u, GPIO.OUT, initial=0 )
 GPIO.setup(sec, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(unsec, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-#GPIO.setup(switch4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(lock, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 PB = GPIO.input(sec) # configure pushbutton as GPIO input
 PB1 = GPIO.input(unsec) # configure mode pushbutton as GPIO input
@@ -48,7 +49,7 @@ mcp = Adafruit_MCP3008.MCP3008(clk=SPICLK, cs=SPICS, mosi=SPIMOSI, miso=SPIMISO)
 values=[0]*8
 
 #Event detection set up
-##GPIO.add_event_detect(s, GPIO.FALLING, callback=reset, bouncetime=200)
+GPIO.add_event_detect(lock, GPIO.FALLING, callback=lock, bouncetime=200)
 
 #Function dfinitions
 def lock():
@@ -217,10 +218,7 @@ while True: # while loop continues until push button is pressed
         break
                 
         
-        
-        
-        #return dur,tol
-
+  
     
     
     
