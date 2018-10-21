@@ -19,6 +19,7 @@ SPICS = 8
 l = 14
 u = 15
 s = 25 #switch
+lock = 22
 
 #variables
 tol = 50 # tolerance
@@ -37,7 +38,7 @@ GPIO.setup(SPICS, GPIO.OUT)
 GPIO.setup(l, GPIO.OUT, initial=0)
 GPIO.setup(u, GPIO.OUT, initial=0 )
 GPIO.setup(s, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-#GPIO.setup(switch4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(lock, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 PB = GPIO.input(s) # configure pushbutton as GPIO input
 
@@ -46,7 +47,7 @@ mcp = Adafruit_MCP3008.MCP3008(clk=SPICLK, cs=SPICS, mosi=SPIMOSI, miso=SPIMISO)
 values=[0]*8
 
 #Event detection set up
-##GPIO.add_event_detect(s, GPIO.FALLING, callback=reset, bouncetime=200)
+GPIO.add_event_detect(lock, GPIO.FALLING, callback=lock, bouncetime=200)
 
 #Function dfinitions
 def lock():
@@ -81,7 +82,6 @@ def sort(x): # sorting funciton for array
                 min = i
         new.append(min)
         copy.remove(min)  
-    
     return new
 
 # Main
